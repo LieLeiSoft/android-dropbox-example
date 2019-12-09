@@ -13,6 +13,7 @@ import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.FileProvider;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -228,11 +229,30 @@ public class FilesActivity extends DropboxActivity {
 
     private void viewFileInExternalApp(File result) {
         Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
         MimeTypeMap mime = MimeTypeMap.getSingleton();
         String ext = result.getName().substring(result.getName().indexOf(".") + 1);
         String type = mime.getMimeTypeFromExtension(ext);
 
-        intent.setDataAndType(Uri.fromFile(result), type);
+        /*
+            What is android.os.FileUriExposedException and what you can do about it
+            If you have an app that shares files with other apps using a Uri, you may have encountered this error on API 24+.
+            This error occurs when you try to share a file:// Uri in an Intent broadcast to share data with other apps. Using file:// Uri’s are discouraged in this scenario because it makes some assumptions about the destination app. For one thing, we assume that the destination app has READ_EXTERNAL_PERMISSION which may not be the case. If the destination app does not have READ_EXTERNAL_PERMISSION, this may result in unexpected behaviour at best or at worst, result in a crash.
+            As of Android N, in order to work around this issue, you need to use the FileProvider API.
+            https://medium.com/@ali.muzaffar/what-is-android-os-fileuriexposedexception-and-what-you-can-do-about-it-70b9eb17c6d0
+        */
+
+        // Old Approach
+        // intent.setDataAndType(Uri.fromFile(result), type);
+
+        // New Approach
+        Uri apkURI = FileProvider.getUriForFile(
+                FilesActivity.this,
+                FilesActivity.this.getApplicationContext()
+                        .getPackageName() + ".provider", result);
+        intent.setDataAndType(apkURI, type);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        // End New Approach
 
         // Check for a handler first to avoid a crash
         PackageManager manager = getPackageManager();
